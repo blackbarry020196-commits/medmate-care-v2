@@ -1,5 +1,14 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "4mb",
+    },
+  },
+  maxDuration: 60,
+};
+
 const SYSTEM_PROMPT = `You are a medical prescription reader. Extract all medications from this NHS prescription image. 
 Return ONLY a JSON array with no extra text, in this format:
 [
@@ -46,14 +55,40 @@ function parseMedications(content: string): ScannedMedication[] {
     .filter((item) => item.name.length > 0);
 }
 
+function openAiErrorMessage(status: number, errText: string): string {
+  try {
+    const parsed = JSON.parse(errText) as {
+      error?: { message?: string; code?: string; type?: string };
+    };
+    const code = parsed.error?.code ?? "";
+    const message = parsed.error?.message ?? "";
+
+    if (status === 401 || code === "invalid_api_key") {
+      return "OpenAI API key is invalid. In Vercel, set OPENAI_API_KEY to a valid key from platform.openai.com.";
+    }
+    if (code === "insufficient_quota" || message.toLowerCase().includes("quota")) {
+      return "OpenAI account has no credits. Add billing at platform.openai.com, then try again.";
+    }
+    if (code === "model_not_found") {
+      return "GPT-4o is not available on your OpenAI account. Check model access in OpenAI settings.";
+    }
+    if (message) return message;
+  } catch {
+    // fall through
+  }
+  return "Could not read the prescription. Please try again.";
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: "OpenAI API key is not configured on the server." });
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey || apiKey === "your-openai-api-key") {
+    return res.status(500).json({
+      error: "OpenAI API key is not configured. Add OPENAI_API_KEY in Vercel → Settings → Environment Variables.",
+    });
   }
 
   const body = req.body as { image?: string; mimeType?: string } | undefined;
@@ -98,7 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!openaiRes.ok) {
       const errText = await openaiRes.text();
       console.error("OpenAI error:", errText);
-      return res.status(502).json({ error: "Could not read the prescription. Please try again." });
+      return res.status(502).json({ error: openAiErrorMessage(openaiRes.status, errText) });
     }
 
     const data = (await openaiRes.json()) as {
