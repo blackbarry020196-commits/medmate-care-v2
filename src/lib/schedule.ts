@@ -1,6 +1,7 @@
 import { DAY_NAMES } from "@/lib/constants";
 import type { ScheduleItem } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
+import { recordMedicationTaken } from "@/lib/medication-logs";
 
 export async function getTodaySchedule(userId: string): Promise<ScheduleItem[]> {
   const now = new Date();
@@ -69,7 +70,12 @@ export async function getTodaySchedule(userId: string): Promise<ScheduleItem[]> 
 
 export async function markDoseTaken(
   userId: string,
-  vars: { reminder_id: string; scheduled_at: string; log_id: string | null },
+  vars: {
+    reminder_id: string;
+    scheduled_at: string;
+    log_id: string | null;
+    medication_id: string;
+  },
 ) {
   const now = new Date().toISOString();
 
@@ -80,17 +86,21 @@ export async function markDoseTaken(
       .eq("id", vars.log_id)
       .eq("user_id", userId);
     if (error) throw new Error(error.message);
-    return;
+  } else {
+    const { error } = await supabase.from("dose_logs").insert({
+      reminder_id: vars.reminder_id,
+      user_id: userId,
+      scheduled_at: vars.scheduled_at,
+      taken_at: now,
+      status: "taken",
+    });
+    if (error) throw new Error(error.message);
   }
 
-  const { error } = await supabase.from("dose_logs").insert({
-    reminder_id: vars.reminder_id,
-    user_id: userId,
+  await recordMedicationTaken(userId, {
+    medication_id: vars.medication_id,
     scheduled_at: vars.scheduled_at,
-    taken_at: now,
-    status: "taken",
   });
-  if (error) throw new Error(error.message);
 }
 
 export function formatTime12h(hhmm: string) {

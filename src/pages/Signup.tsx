@@ -1,19 +1,26 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Pill } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { resolvePostAuthPath, savePendingInviteToken } from "@/lib/family";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function SignupPage() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const inviteToken = params.get("invite");
+
+  useEffect(() => {
+    if (inviteToken) savePendingInviteToken(inviteToken);
+  }, [inviteToken]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,18 +29,37 @@ export default function SignupPage() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName.trim(), role: "patient" } },
+      options: {
+        data: {
+          full_name: fullName.trim(),
+          role: inviteToken ? "family" : "patient",
+        },
+      },
     });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       toast.error(error.message);
       return;
     }
-    toast.success("Account created. Welcome to MedMate!");
-    navigate("/dashboard");
+
+    if (!data.user) {
+      setLoading(false);
+      toast.error("Could not create account.");
+      return;
+    }
+
+    try {
+      const path = await resolvePostAuthPath(data.user.id);
+      toast.success(inviteToken ? "Welcome to MedMate Family!" : "Account created. Welcome to MedMate!");
+      navigate(path);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not complete signup.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -48,8 +74,12 @@ export default function SignupPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Create account</CardTitle>
-            <CardDescription className="text-base">Set up your medication reminders in a few steps.</CardDescription>
+            <CardTitle className="text-2xl">{inviteToken ? "Create family account" : "Create account"}</CardTitle>
+            <CardDescription className="text-base">
+              {inviteToken
+                ? "Set up your account to monitor your family member's medications."
+                : "Set up your medication reminders in a few steps."}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-5" onSubmit={onSubmit}>
@@ -70,7 +100,7 @@ export default function SignupPage() {
               </Button>
               <p className="text-center text-base text-muted-foreground">
                 Already have an account?{" "}
-                <Link to="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
+                <Link to={`/login${inviteToken ? `?invite=${inviteToken}` : ""}`} className="font-semibold text-primary underline-offset-4 hover:underline">
                   Sign in
                 </Link>
               </p>

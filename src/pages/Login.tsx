@@ -1,29 +1,44 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Pill } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { resolvePostAuthPath, savePendingInviteToken } from "@/lib/family";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const invite = params.get("invite");
+    if (invite) savePendingInviteToken(invite);
+  }, [params]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
+      setLoading(false);
       toast.error(error.message);
       return;
     }
-    navigate("/dashboard");
+
+    try {
+      const path = await resolvePostAuthPath(data.user.id);
+      navigate(path);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not complete sign in.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -56,7 +71,7 @@ export default function LoginPage() {
               </Button>
               <p className="text-center text-base text-muted-foreground">
                 Don&apos;t have an account?{" "}
-                <Link to="/signup" className="font-semibold text-primary underline-offset-4 hover:underline">
+                <Link to={`/signup${params.get("invite") ? `?invite=${params.get("invite")}` : ""}`} className="font-semibold text-primary underline-offset-4 hover:underline">
                   Create one
                 </Link>
               </p>

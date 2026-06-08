@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, Check, Clock } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth";
 import { formatTime12h, getTodaySchedule, greeting, markDoseTaken } from "@/lib/schedule";
+import { ensureTodayMedicationLogs } from "@/lib/medication-logs";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function DashboardPage() {
@@ -28,9 +30,17 @@ export default function DashboardPage() {
     queryFn: () => getTodaySchedule(userId),
   });
 
+  useEffect(() => {
+    ensureTodayMedicationLogs(userId).catch(() => undefined);
+  }, [userId]);
+
   const markMutation = useMutation({
-    mutationFn: (vars: { reminder_id: string; scheduled_at: string; log_id: string | null }) =>
-      markDoseTaken(userId, vars),
+    mutationFn: (vars: {
+      reminder_id: string;
+      scheduled_at: string;
+      log_id: string | null;
+      medication_id: string;
+    }) => markDoseTaken(userId, vars),
     onSuccess: () => {
       toast.success("Dose marked as taken");
       qc.invalidateQueries({ queryKey: ["schedule", "today"] });
@@ -106,6 +116,7 @@ export default function DashboardPage() {
                           reminder_id: item.reminder_id,
                           scheduled_at: item.scheduled_at,
                           log_id: item.log_id,
+                          medication_id: item.medication_id,
                         })
                       }
                     >
