@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Pencil, Pill, Plus, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Pencil, Pill, Plus, ScanLine, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/medmate/PageHeader";
 import { LoadingCard } from "@/components/medmate/LoadingCard";
@@ -133,6 +134,13 @@ export default function MedicationsPage() {
   return (
     <>
       <PageHeader title="Medications" subtitle="All the medications you take, in one place." />
+
+      <Button size="lg" variant="secondary" className="mb-3 w-full" asChild>
+        <Link to="/dashboard/scan">
+          <ScanLine className="h-6 w-6" />
+          Scan Prescription
+        </Link>
+      </Button>
 
       <Button size="lg" className="mb-6 w-full" onClick={openAdd}>
         <Plus className="h-6 w-6" />

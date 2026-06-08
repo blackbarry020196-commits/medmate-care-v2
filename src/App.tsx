@@ -9,6 +9,7 @@ import LoginPage from "@/pages/Login";
 import MedicationsPage from "@/pages/Medications";
 import ProfilePage from "@/pages/Profile";
 import RemindersPage from "@/pages/Reminders";
+import ScanPrescriptionPage from "@/pages/ScanPrescription";
 import SignupPage from "@/pages/Signup";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/medications" element={<MedicationsPage />} />
+              <Route path="/dashboard/scan" element={<ScanPrescriptionPage />} />
               <Route path="/reminders" element={<RemindersPage />} />
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
