@@ -1,13 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { Users } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/medmate/PageHeader";
+import { PushNotificationPrompt } from "@/components/medmate/PushNotificationPrompt";
 import { PatientCard, type PatientDashboardData } from "@/components/family/PatientCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getAccessToken, usePushNotifications } from "@/hooks/usePushNotifications";
 import { useAuth } from "@/lib/auth";
 import { fetchLinkedPatients } from "@/lib/family";
+import { notifyFamilyMissedMeds } from "@/lib/push-subscriptions";
 import {
   ensureTodayMedicationLogs,
   fetchRecentMissedMeds,
@@ -56,6 +59,8 @@ function PatientCardSkeleton() {
 export default function FamilyDashboardPage() {
   const { user } = useAuth();
   const [selectedPatientId, setSelectedPatientId] = useState<string | "all">("all");
+  const push = usePushNotifications(user?.id);
+  const missedCheckDone = useRef(false);
 
   const patientsQ = useQuery({
     queryKey: ["family", "patients", user!.id],
@@ -77,9 +82,32 @@ export default function FamilyDashboardPage() {
       ? patientCards
       : patientCards.filter((p) => p.id === selectedPatientId);
 
+  useEffect(() => {
+    if (!push.isSubscribed || missedCheckDone.current || patientsQ.isLoading) return;
+
+    missedCheckDone.current = true;
+    void (async () => {
+      const token = await getAccessToken();
+      if (!token) return;
+      try {
+        await notifyFamilyMissedMeds(token);
+      } catch (error) {
+        console.error("Missed medication alert check failed:", error);
+      }
+    })();
+  }, [push.isSubscribed, patientsQ.isLoading]);
+
   return (
     <>
       <PageHeader title="Family Dashboard" subtitle="Monitor your loved one's medication adherence." />
+
+      <PushNotificationPrompt
+        push={push}
+        variant="banner"
+        title="Get alerted when medications are missed"
+        description="Enable browser notifications so you know right away if a dose is missed."
+        buttonLabel="Enable Alerts"
+      />
 
       {patientsQ.isLoading || dashboardQ.isLoading ? (
         <div className="space-y-4">

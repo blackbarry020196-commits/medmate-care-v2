@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Pill } from "lucide-react";
 import { toast } from "sonner";
+import { PushNotificationPrompt } from "@/components/medmate/PushNotificationPrompt";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { resolvePostAuthPath, savePendingInviteToken } from "@/lib/family";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,7 +18,10 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [createdUserId, setCreatedUserId] = useState<string | null>(null);
+  const [postAuthPath, setPostAuthPath] = useState("/dashboard");
   const inviteToken = params.get("invite");
+  const push = usePushNotifications(createdUserId ?? undefined);
 
   useEffect(() => {
     if (inviteToken) savePendingInviteToken(inviteToken);
@@ -54,12 +59,49 @@ export default function SignupPage() {
     try {
       const path = await resolvePostAuthPath(data.user.id);
       toast.success(inviteToken ? "Welcome to MedMate Family!" : "Account created. Welcome to MedMate!");
+
+      if (!inviteToken) {
+        setCreatedUserId(data.user.id);
+        setPostAuthPath(path);
+        return;
+      }
+
       navigate(path);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not complete signup.");
     } finally {
       setLoading(false);
     }
+  }
+
+  function finishOnboarding() {
+    navigate(postAuthPath);
+  }
+
+  if (createdUserId) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-secondary px-4 py-12">
+        <div className="w-full max-w-md space-y-4">
+          <PushNotificationPrompt
+            push={push}
+            title="Enable reminders so you never miss a medication"
+            description="MedMate can send browser notifications when it's time to take your meds."
+            buttonLabel="Enable Notifications"
+            showSkip
+            onSubscribed={finishOnboarding}
+            onSkipped={finishOnboarding}
+          />
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-lg text-muted-foreground">Your account is ready.</p>
+              <Button size="lg" variant="ghost" className="mt-4 w-full" onClick={finishOnboarding}>
+                Continue to dashboard
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    );
   }
 
   return (

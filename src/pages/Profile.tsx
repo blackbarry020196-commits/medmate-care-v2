@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useAuth } from "@/lib/auth";
 import { createFamilyInvite } from "@/lib/family";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +20,7 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const push = usePushNotifications(user?.id);
 
   const profileQ = useQuery({
     queryKey: ["profile"],
@@ -63,6 +66,20 @@ export default function ProfilePage() {
     if (!inviteLink) return;
     await navigator.clipboard.writeText(inviteLink);
     toast.success("Link copied — share via WhatsApp or text");
+  }
+
+  async function handleNotificationToggle(checked: boolean) {
+    try {
+      if (checked) {
+        await push.subscribe();
+        toast.success("Notifications enabled");
+      } else {
+        await push.unsubscribe();
+        toast.success("Notifications disabled");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update notifications.");
+    }
   }
 
   if (profileQ.isLoading) return <LoadingCard label="Loading profile…" />;
@@ -137,6 +154,32 @@ export default function ProfilePage() {
                 )}
               </div>
             </>
+          )}
+
+          {push.isSupported && (
+            <div className="space-y-3 rounded-xl border p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-lg font-semibold">
+                    {isPatient ? "Medication reminders" : "Missed medication alerts"}
+                  </p>
+                  <p className="text-base text-muted-foreground">
+                    {isPatient
+                      ? "Browser notifications for your medication schedule."
+                      : "Get notified when your relative misses a dose."}
+                  </p>
+                </div>
+                <Switch
+                  checked={push.isSubscribed}
+                  disabled={push.loading || push.permission === "denied"}
+                  onCheckedChange={handleNotificationToggle}
+                  aria-label={isPatient ? "Medication reminders" : "Missed medication alerts"}
+                />
+              </div>
+              {push.blockedMessage && (
+                <p className="text-sm text-destructive">{push.blockedMessage}</p>
+              )}
+            </div>
           )}
 
           <Button size="lg" variant="outline" className="w-full" onClick={handleSignOut}>

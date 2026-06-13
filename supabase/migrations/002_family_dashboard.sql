@@ -65,7 +65,9 @@ create policy "profiles select own or linked" on public.profiles
     )
   );
 
+drop policy if exists "profiles insert own" on public.profiles;
 create policy "profiles insert own" on public.profiles for insert with check (id = auth.uid());
+drop policy if exists "profiles update own" on public.profiles;
 create policy "profiles update own" on public.profiles for update using (id = auth.uid());
 
 -- Family invites

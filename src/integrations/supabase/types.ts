@@ -166,6 +166,37 @@ export type Database = {
           status?: MedLogStatus;
         };
       };
+      push_subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          subscription: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          subscription: Json;
+        };
+        Update: {
+          subscription?: Json;
+        };
+      };
+      push_notification_log: {
+        Row: {
+          id: string;
+          medication_log_id: string;
+          family_user_id: string;
+          sent_at: string;
+        };
+        Insert: {
+          id?: string;
+          medication_log_id: string;
+          family_user_id: string;
+          sent_at?: string;
+        };
+        Update: Record<string, never>;
+      };
     };
     Functions: {
       get_invite_preview: {
