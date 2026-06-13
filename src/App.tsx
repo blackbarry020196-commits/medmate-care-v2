@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { AppLayout } from "@/components/medmate/AppLayout";
 import { GuestRoute } from "@/components/medmate/GuestRoute";
+import { LandingRoute } from "@/components/landing/LandingRoute";
 import { AuthProvider } from "@/lib/auth";
 import DashboardPage from "@/pages/Dashboard";
 import LoginPage from "@/pages/Login";
@@ -22,7 +23,7 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<LandingRoute />} />
             <Route
               path="/login"
               element={
