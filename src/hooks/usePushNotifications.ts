@@ -19,6 +19,7 @@ function getVapidPublicKey() {
 function getBrowserPushSupport() {
   return (
     typeof window !== "undefined" &&
+    window.isSecureContext &&
     "serviceWorker" in navigator &&
     "PushManager" in window &&
     "Notification" in window
@@ -29,7 +30,7 @@ async function getBrowserPushSubscription() {
   if (!getBrowserPushSupport()) return null;
 
   try {
-    const registration = await navigator.serviceWorker.getRegistration("/sw.js");
+    const registration = await navigator.serviceWorker.getRegistration();
     return (await registration?.pushManager.getSubscription()) ?? null;
   } catch {
     return null;
@@ -37,13 +38,13 @@ async function getBrowserPushSubscription() {
 }
 
 export function usePushNotifications(userId: string | undefined) {
-  const [isSupported, setIsSupported] = useState(false);
+  const [isSupported, setIsSupported] = useState(() => getBrowserPushSupport());
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>(
     typeof Notification !== "undefined" ? Notification.permission : "default",
   );
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Boolean(userId));
 
   const refreshSubscriptionState = useCallback(async () => {
     if (!userId) {

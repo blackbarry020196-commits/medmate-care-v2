@@ -28,7 +28,7 @@ export function PushNotificationPrompt({
   showSkip = false,
 }: PushNotificationPromptProps) {
 
-  if (push.loading || push.isSubscribed || !push.isSupported) {
+  if (push.isSubscribed || !push.isSupported) {
     return null;
   }
 
@@ -61,8 +61,8 @@ export function PushNotificationPrompt({
         </div>
       </div>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Button size="lg" className="w-full sm:w-auto" onClick={handleSubscribe}>
-          {buttonLabel}
+        <Button size="lg" className="w-full sm:w-auto" disabled={push.loading} onClick={handleSubscribe}>
+          {push.loading ? "Checking…" : buttonLabel}
         </Button>
         {showSkip && (
           <Button size="lg" variant="ghost" className="w-full sm:w-auto" onClick={onSkipped}>
